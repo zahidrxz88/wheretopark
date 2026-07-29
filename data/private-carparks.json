@@ -31,7 +31,7 @@
     "lat": 1.301563,
     "lng": 103.8364029,
     "notes": "$2.50 first hour, $1.50 per subsequent half-hour on weekdays.",
-    "estimatedDayCost": 2.5 + 1.5 * 14,
+    "estimatedDayCost": 23.5,
     "confidence": "estimate",
     "sourceNote": "Posted rate card, 2025-2026."
   },
@@ -40,7 +40,7 @@
     "lat": 1.3239929,
     "lng": 103.8096695,
     "notes": "$2.60-2.82 per 20 minutes, no grace period.",
-    "estimatedDayCost": 2.7 * 3 * 9,
+    "estimatedDayCost": 72.9,
     "confidence": "estimate",
     "sourceNote": "From reviews, 2025-2026."
   },
