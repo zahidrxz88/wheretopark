@@ -1,9 +1,0 @@
-{
-  "name": "wheretopark",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Singapore parking finder - ranks nearby carparks cheapest-first using official HDB rates.",
-  "scripts": {
-    "dev": "vercel dev"
-  }
-}
