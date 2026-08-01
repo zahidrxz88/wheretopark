@@ -35,6 +35,13 @@ No environment variables or API keys are required to start. If you later hit
 rate limits on OneMap's search API, you can register a free account at
 [onemap.gov.sg](https://www.onemap.gov.sg/apidocs/) and add a token.
 
+To enable the **EV charging toggle** (filters results to private/mall
+carparks with EV charging nearby - HDB carparks aren't covered), register a
+free account key at [datamall.lta.gov.sg](https://datamall.lta.gov.sg/) and
+add it as the `LTA_ACCOUNT_KEY` environment variable in your Vercel project
+settings (see `.env.example`). Without it, the toggle stays fully functional
+in the UI but always returns zero carparks rather than guessing.
+
 ## Local development
 
 ```

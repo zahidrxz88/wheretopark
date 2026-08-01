@@ -35,6 +35,9 @@ const {
 } = require("../lib/rates");
 const privateCarparks = require("../data/private-carparks.json");
 const ltaCarparks = require("../data/private-carparks-lta.json");
+const { fetchEvChargingPoints } = require("../lib/evCharging");
+
+const EV_MATCH_RADIUS_M = 150; // how close an LTA-reported EV charging point must be to count as "this carpark has EV charging"
 
 const SEARCH_RADIUS_M = 1000; // 1km, as requested
 const POSTAL_CODE_REGEX = /^\d{6}$/;
@@ -179,6 +182,14 @@ module.exports = async (req, res) => {
     // motorcycle searches rather than showing a wrong number) ---
     let privateResults = [];
     if (vehicleType === "car") {
+      // EV charging is matched against LTA's EVChargingPoints data for
+      // private/mall carparks only - HDB carpark coordinates in this app are
+      // SVY21 (easting/northing), not lat/lon, so they aren't matched here
+      // and always report ev: false (see hdbResults above).
+      const evPoints = await fetchEvChargingPoints(postalCode);
+      const nearEvChargingPoint = (lat, lng) =>
+        evPoints.some((p) => haversineMeters(lat, lng, p.lat, p.lon) <= EV_MATCH_RADIUS_M);
+
       const handCurated = privateCarparks
         .map((p) => {
           const distanceM = haversineMeters(geocoded.lat, geocoded.lon, p.lat, p.lng);
@@ -194,7 +205,7 @@ module.exports = async (req, res) => {
             estimatedCost: cost,
             rateLabel: p.notes,
             confidence,
-            ev: !!p.ev, // not yet populated in data/private-carparks.json
+            ev: nearEvChargingPoint(p.lat, p.lng),
           };
         });
 
@@ -213,7 +224,7 @@ module.exports = async (req, res) => {
             estimatedCost: cost,
             rateLabel: rateLabel,
             confidence,
-            ev: !!c.ev, // not yet populated in data/private-carparks-lta.json
+            ev: nearEvChargingPoint(c.lat, c.lng),
           };
         });
 
@@ -231,9 +242,7 @@ module.exports = async (req, res) => {
       return a.distanceM - b.distanceM;
     });
 
-    // EV filter: no carpark in our current data sources is confirmed to have
-    // EV charging yet, so this is wired up but returns an empty list for now
-    // (see `ev` field notes above) rather than guessing.
+    const evConfigured = !!process.env.LTA_ACCOUNT_KEY;
     const finalResults = evOnly ? ranked.filter((c) => c.ev === true) : ranked;
 
     res.status(200).json({
@@ -244,13 +253,14 @@ module.exports = async (req, res) => {
         durationHours: safeDuration,
         vehicleType,
         evOnly,
+        evConfigured,
         radiusM: SEARCH_RADIUS_M,
         assumedCentralArea: central,
         note:
           "Central Area status is approximated from the searched address and applied to nearby HDB carparks. Private carpark rates come from a small curated list, not a live feed. Motorcycle results only include HDB/URA carparks - private carpark motorcycle rates aren't in our data yet." +
-          (evOnly
-            ? " EV charging availability isn't in any of our data sources yet, so the EV filter currently returns no carparks - this is a placeholder pending real charging-point data."
-            : ""),
+          (evConfigured
+            ? ` EV charging flags come from LTA DataMall's EVChargingPoints API, matched to private/mall carparks within ${EV_MATCH_RADIUS_M}m - HDB carpark EV charging isn't covered yet.`
+            : " EV charging data isn't configured on this deployment yet (needs an LTA DataMall account key), so the EV filter currently returns no carparks."),
       },
       results: finalResults,
     });
