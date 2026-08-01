@@ -40,6 +40,12 @@
     background-size:cover;
     background-position:center 35%;
     background-repeat:no-repeat;
+    transition: background-image 0.2s ease;
+  }
+  .hero.moto{
+    background-image:
+      linear-gradient(180deg, rgba(6,7,9,0.88) 0%, rgba(6,7,9,0.55) 38%, rgba(6,7,9,0.82) 100%),
+      url('moto-bg.jpg');
   }
 
   /* ---- Vehicle type toggle ---- */
@@ -429,7 +435,7 @@
 </head>
 <body>
 
-<div class="hero">
+<div class="hero" id="hero">
   <div class="eyebrow">Live carpark finder · Singapore</div>
   <h1 class="brand">WHERE<span>TO</span>PARK</h1>
   <p class="tagline">Type your postal code. We point you to the cheapest carparks within 1km — so you spend less time circling and less money parking.</p>
@@ -500,6 +506,7 @@
 
 <script>
   const vehicleToggle = document.getElementById('vehicleToggle');
+  const hero = document.getElementById('hero');
   let selectedVehicle = 'car';
   vehicleToggle.addEventListener('click', function(e){
     const btn = e.target.closest('.vehicle-btn');
@@ -511,6 +518,7 @@
     btn.classList.add('active');
     btn.setAttribute('aria-pressed', 'true');
     selectedVehicle = btn.dataset.vehicle;
+    hero.classList.toggle('moto', selectedVehicle === 'motorcycle');
   });
 
   const resultsFilter = document.getElementById('resultsFilter');
