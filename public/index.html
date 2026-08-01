@@ -88,13 +88,10 @@
     color:#1a0c0a;
   }
 
-  .ev-note{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11.5px;
-    color:var(--amber);
-    text-align:center;
-    max-width:480px;
-    margin:-12px 0 22px;
+  .results-filter{
+    display:flex;
+    justify-content:center;
+    margin-top:14px;
   }
 
   .eyebrow{
@@ -456,14 +453,7 @@
         Motorcycle
       </button>
     </div>
-    <button type="button" class="vehicle-btn ev-btn" id="evToggle" aria-pressed="false" aria-label="Show only carparks with EV charging">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-      EV
-    </button>
   </div>
-  <p class="ev-note" id="evNote" style="display:none;">⚡ EV filter only checks private/mall carparks for charging bays — HDB carparks aren't covered. Results may be empty if EV data isn't configured on this deployment.</p>
 
   <p class="prompt">Where to?</p>
 
@@ -494,6 +484,15 @@
 
   <p class="status" id="status"></p>
 
+  <div class="results-filter" id="resultsFilter" style="display:none;">
+    <button type="button" class="vehicle-btn ev-btn" id="evFilterBtn" aria-pressed="false" aria-label="Filter to carparks with EV charging">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+      EV only
+    </button>
+  </div>
+
   <div class="results" id="results"></div>
 
   <footer>Built for drivers in SG · No app, no login, just parking</footer>
@@ -514,14 +513,19 @@
     selectedVehicle = btn.dataset.vehicle;
   });
 
-  const evToggleBtn = document.getElementById('evToggle');
-  const evNote = document.getElementById('evNote');
-  let evOnly = false;
-  evToggleBtn.addEventListener('click', function(){
-    evOnly = !evOnly;
-    evToggleBtn.classList.toggle('active', evOnly);
-    evToggleBtn.setAttribute('aria-pressed', String(evOnly));
-    evNote.style.display = evOnly ? 'block' : 'none';
+  const resultsFilter = document.getElementById('resultsFilter');
+  const evFilterBtn = document.getElementById('evFilterBtn');
+  let evFilterOn = false;
+  let lastData = null;
+  let lastPostalCode = null;
+  let lastDurationLabel = null;
+
+  evFilterBtn.addEventListener('click', function(){
+    if(!lastData) return;
+    evFilterOn = !evFilterOn;
+    evFilterBtn.classList.toggle('active', evFilterOn);
+    evFilterBtn.setAttribute('aria-pressed', String(evFilterOn));
+    renderResults(lastData, lastPostalCode, lastDurationLabel);
   });
 
   const form = document.getElementById('searchForm');
@@ -676,16 +680,19 @@
   function renderResults(data, postalCode, durationLabel){
     resultsEl.innerHTML = '';
 
-    if(!data.results || data.results.length === 0){
-      status.textContent = evOnly
+    const allResults = data.results || [];
+    const filtered = evFilterOn ? allResults.filter(r => r.ev === true) : allResults;
+
+    if(filtered.length === 0){
+      status.textContent = evFilterOn
         ? 'No carparks with confirmed EV charging within 1km of "' + data.query.address + '". EV matching only checks a small curated list of private/mall carparks (not HDB) within 150m of a real charging point - try turning EV off to see all carparks in the area.'
         : 'No carparks found within 1km of "' + data.query.address + '".';
       return;
     }
 
-    status.textContent = 'Carparks within 1km of "' + data.query.address + '", cheapest first (' + selectedVehicle + (evOnly ? ', EV charging only' : '') + ', parking ' + durationLabel + '):';
+    status.textContent = 'Carparks within 1km of "' + data.query.address + '", cheapest first (' + selectedVehicle + (evFilterOn ? ', EV charging only' : '') + ', parking ' + durationLabel + '):';
 
-    data.results.slice(0, 10).forEach(function(r, i){
+    filtered.slice(0, 10).forEach(function(r, i){
       const a = document.createElement('a');
       a.className = 'result-card' + (i === 0 ? ' cheapest' : '');
       a.href = mapsLink(r.name, postalCode);
@@ -741,6 +748,10 @@
 
     status.textContent = 'Finding carparks near "' + typed + '"...';
     resultsEl.innerHTML = '';
+    resultsFilter.style.display = 'none';
+    evFilterOn = false;
+    evFilterBtn.classList.remove('active');
+    evFilterBtn.setAttribute('aria-pressed', 'false');
 
     const nowIso = new Date().toISOString();
 
@@ -750,8 +761,7 @@
         '&hours=' + encodeURIComponent(durationHours) +
         '&startMin=' + encodeURIComponent(startMin) +
         '&endMin=' + encodeURIComponent(endMin) +
-        '&vehicleType=' + encodeURIComponent(selectedVehicle) +
-        '&evOnly=' + encodeURIComponent(evOnly);
+        '&vehicleType=' + encodeURIComponent(selectedVehicle);
       const res = await fetch(url);
       const data = await res.json();
 
@@ -760,6 +770,11 @@
         status.textContent = '';
         return;
       }
+
+      lastData = data;
+      lastPostalCode = postalCode;
+      lastDurationLabel = durationLabel;
+      resultsFilter.style.display = (selectedVehicle === 'car' && data.results && data.results.length > 0) ? 'flex' : 'none';
 
       renderResults(data, postalCode, durationLabel);
     } catch(err){
