@@ -108,6 +108,7 @@ module.exports = async (req, res) => {
     }
 
     const vehicleType = req.query.vehicleType === "motorcycle" ? "motorcycle" : "car";
+    const evOnly = req.query.evOnly === "true";
 
     const timeParam = req.query.time ? new Date(req.query.time) : new Date();
     const dayOfWeek = timeParam.getDay(); // 0 = Sunday
@@ -157,6 +158,7 @@ module.exports = async (req, res) => {
             estimatedCost: cost.estimatedCost,
             rateLabel: cost.rateLabel,
             confidence: cost.confidence,
+            ev: false, // EV charging info isn't in the HDB carpark dataset
           };
         }
         const cost = estimateHdbCost(geocoded.lat, geocoded.lon, {
@@ -168,6 +170,7 @@ module.exports = async (req, res) => {
           estimatedCost: cost.estimatedCost,
           rateLabel: cost.rateLabel,
           confidence: cost.confidence,
+          ev: false, // EV charging info isn't in the HDB carpark dataset
         };
       });
 
@@ -191,6 +194,7 @@ module.exports = async (req, res) => {
             estimatedCost: cost,
             rateLabel: p.notes,
             confidence,
+            ev: !!p.ev, // not yet populated in data/private-carparks.json
           };
         });
 
@@ -209,6 +213,7 @@ module.exports = async (req, res) => {
             estimatedCost: cost,
             rateLabel: rateLabel,
             confidence,
+            ev: !!c.ev, // not yet populated in data/private-carparks-lta.json
           };
         });
 
@@ -226,6 +231,11 @@ module.exports = async (req, res) => {
       return a.distanceM - b.distanceM;
     });
 
+    // EV filter: no carpark in our current data sources is confirmed to have
+    // EV charging yet, so this is wired up but returns an empty list for now
+    // (see `ev` field notes above) rather than guessing.
+    const finalResults = evOnly ? ranked.filter((c) => c.ev === true) : ranked;
+
     res.status(200).json({
       query: { address: geocoded.address, lat: geocoded.lat, lon: geocoded.lon },
       context: {
@@ -233,12 +243,16 @@ module.exports = async (req, res) => {
         hour,
         durationHours: safeDuration,
         vehicleType,
+        evOnly,
         radiusM: SEARCH_RADIUS_M,
         assumedCentralArea: central,
         note:
-          "Central Area status is approximated from the searched address and applied to nearby HDB carparks. Private carpark rates come from a small curated list, not a live feed. Motorcycle results only include HDB/URA carparks - private carpark motorcycle rates aren't in our data yet.",
+          "Central Area status is approximated from the searched address and applied to nearby HDB carparks. Private carpark rates come from a small curated list, not a live feed. Motorcycle results only include HDB/URA carparks - private carpark motorcycle rates aren't in our data yet." +
+          (evOnly
+            ? " EV charging availability isn't in any of our data sources yet, so the EV filter currently returns no carparks - this is a placeholder pending real charging-point data."
+            : ""),
       },
-      results: ranked,
+      results: finalResults,
     });
   } catch (err) {
     res.status(500).json({ error: err.message || "Server error" });
