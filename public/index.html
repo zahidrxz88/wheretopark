@@ -677,7 +677,9 @@
     resultsEl.innerHTML = '';
 
     if(!data.results || data.results.length === 0){
-      status.textContent = 'No carparks found within 1km of "' + data.query.address + '".';
+      status.textContent = evOnly
+        ? 'No carparks with confirmed EV charging within 1km of "' + data.query.address + '". EV matching only checks a small curated list of private/mall carparks (not HDB) within 150m of a real charging point - try turning EV off to see all carparks in the area.'
+        : 'No carparks found within 1km of "' + data.query.address + '".';
       return;
     }
 
