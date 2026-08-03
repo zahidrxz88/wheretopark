@@ -219,7 +219,7 @@ module.exports = async (req, res) => {
         })
         .filter((p) => p.distanceM <= SEARCH_RADIUS_M)
         .map((p) => {
-          const { cost, confidence } = estimatePrivateCost(p, safeDuration);
+          const { cost, confidence } = estimatePrivateCost(p, safeDuration, startMin);
           return {
             name: p.name,
             type: p.type,

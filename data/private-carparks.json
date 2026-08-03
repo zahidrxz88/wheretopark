@@ -6,6 +6,8 @@
     "notes": "Flat $4 entry before 5pm, $4.50 per entry after 5pm. No grace period.",
     "rateModel": "flatEntry",
     "flatCost": 4.0,
+    "eveningFlatCost": 4.5,
+    "eveningCutoverMin": 1020,
     "confidence": "estimate",
     "sourceNote": "From user reviews, 2025-2026. Verify current rate on entry."
   },
