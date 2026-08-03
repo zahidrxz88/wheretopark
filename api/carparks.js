@@ -41,7 +41,7 @@ const { fetchCarParkAvailability } = require("../lib/carparkAvailability");
 const EV_MATCH_RADIUS_M = 150; // how close an LTA-reported EV charging point must be to count as "this carpark has EV charging"
 const LOTS_MATCH_RADIUS_M = 150; // how close an LTA-reported availability point must be to count as this carpark's live lot count
 
-const SEARCH_RADIUS_M = 1000; // 1km, as requested
+const SEARCH_RADIUS_M = 2000; // 2km
 const POSTAL_CODE_REGEX = /^\d{6}$/;
 
 let hdbCache = null;
@@ -133,7 +133,7 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // --- HDB public carparks within 1km (exact official rates) ---
+    // --- HDB public carparks within 2km (exact official rates) ---
     const hdbRecords = await fetchHdbCarparks();
     const central = isCentralArea(geocoded.lat, geocoded.lon); // approximation, see notes above
 
@@ -181,7 +181,7 @@ module.exports = async (req, res) => {
         };
       });
 
-    // --- Curated private carparks within 1km (car only - we don't have
+    // --- Curated private carparks within 2km (car only - we don't have
     // researched motorcycle rates for these, so they're skipped for
     // motorcycle searches rather than showing a wrong number) ---
     let privateResults = [];
