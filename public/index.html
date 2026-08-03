@@ -94,11 +94,6 @@
     color:#1a0c0a;
   }
 
-  .results-filter{
-    display:flex;
-    justify-content:center;
-    margin-top:14px;
-  }
 
   .eyebrow{
     font-family:'IBM Plex Mono', monospace;
@@ -462,6 +457,12 @@
         Motorcycle
       </button>
     </div>
+    <button type="button" class="vehicle-btn ev-btn" id="evToggle" aria-pressed="false" aria-label="Search EV charging carparks only">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+      EV
+    </button>
   </div>
 
   <p class="prompt">Where to?</p>
@@ -493,15 +494,6 @@
 
   <p class="status" id="status"></p>
 
-  <div class="results-filter" id="resultsFilter" style="display:none;">
-    <button type="button" class="vehicle-btn ev-btn" id="evFilterBtn" aria-pressed="false" aria-label="Filter to carparks with EV charging">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-      EV only
-    </button>
-  </div>
-
   <div class="results" id="results"></div>
 
   <footer>Built for drivers in SG · No app, no login, just parking</footer>
@@ -524,19 +516,12 @@
     hero.classList.toggle('moto', selectedVehicle === 'motorcycle');
   });
 
-  const resultsFilter = document.getElementById('resultsFilter');
-  const evFilterBtn = document.getElementById('evFilterBtn');
-  let evFilterOn = false;
-  let lastData = null;
-  let lastPostalCode = null;
-  let lastDurationLabel = null;
-
-  evFilterBtn.addEventListener('click', function(){
-    if(!lastData) return;
-    evFilterOn = !evFilterOn;
-    evFilterBtn.classList.toggle('active', evFilterOn);
-    evFilterBtn.setAttribute('aria-pressed', String(evFilterOn));
-    renderResults(lastData, lastPostalCode, lastDurationLabel);
+  const evToggleBtn = document.getElementById('evToggle');
+  let evSelected = false;
+  evToggleBtn.addEventListener('click', function(){
+    evSelected = !evSelected;
+    evToggleBtn.classList.toggle('active', evSelected);
+    evToggleBtn.setAttribute('aria-pressed', String(evSelected));
   });
 
   const form = document.getElementById('searchForm');
@@ -692,16 +677,16 @@
     resultsEl.innerHTML = '';
 
     const allResults = data.results || [];
-    const filtered = evFilterOn ? allResults.filter(r => r.ev === true) : allResults;
+    const filtered = allResults.filter(r => r.ev === evSelected);
 
     if(filtered.length === 0){
-      status.textContent = evFilterOn
-        ? 'No carparks with confirmed EV charging within 1km of "' + data.query.address + '". EV matching only checks a small curated list of private/mall carparks (not HDB) within 150m of a real charging point - try turning EV off to see all carparks in the area.'
+      status.textContent = evSelected
+        ? 'No carparks with confirmed EV charging within 1km of "' + data.query.address + '". EV matching only checks a small curated list of private/mall carparks (not HDB) within 150m of a real charging point.'
         : 'No carparks found within 1km of "' + data.query.address + '".';
       return;
     }
 
-    status.textContent = 'Carparks within 1km of "' + data.query.address + '", cheapest first (' + selectedVehicle + (evFilterOn ? ', EV charging only' : '') + ', parking ' + durationLabel + '):';
+    status.textContent = 'Carparks within 1km of "' + data.query.address + '", cheapest first (' + selectedVehicle + (evSelected ? ', EV charging only' : '') + ', parking ' + durationLabel + '):';
 
     filtered.slice(0, 10).forEach(function(r, i){
       const a = document.createElement('a');
@@ -763,10 +748,6 @@
 
     status.textContent = 'Finding carparks near "' + typed + '"...';
     resultsEl.innerHTML = '';
-    resultsFilter.style.display = 'none';
-    evFilterOn = false;
-    evFilterBtn.classList.remove('active');
-    evFilterBtn.setAttribute('aria-pressed', 'false');
 
     const nowIso = new Date().toISOString();
 
@@ -785,11 +766,6 @@
         status.textContent = '';
         return;
       }
-
-      lastData = data;
-      lastPostalCode = postalCode;
-      lastDurationLabel = durationLabel;
-      resultsFilter.style.display = (selectedVehicle === 'car' && data.results && data.results.length > 0) ? 'flex' : 'none';
 
       renderResults(data, postalCode, durationLabel);
     } catch(err){
