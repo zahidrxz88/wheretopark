@@ -36,8 +36,10 @@ const {
 const privateCarparks = require("../data/private-carparks.json");
 const ltaCarparks = require("../data/private-carparks-lta.json");
 const { fetchEvChargingPoints } = require("../lib/evCharging");
+const { fetchCarParkAvailability } = require("../lib/carparkAvailability");
 
 const EV_MATCH_RADIUS_M = 150; // how close an LTA-reported EV charging point must be to count as "this carpark has EV charging"
+const LOTS_MATCH_RADIUS_M = 150; // how close an LTA-reported availability point must be to count as this carpark's live lot count
 
 const SEARCH_RADIUS_M = 1000; // 1km, as requested
 const POSTAL_CODE_REGEX = /^\d{6}$/;
@@ -162,6 +164,7 @@ module.exports = async (req, res) => {
             rateLabel: cost.rateLabel,
             confidence: cost.confidence,
             ev: false, // EV charging info isn't in the HDB carpark dataset
+            availableLots: null, // live lot matching is scoped to private/mall carparks only for now
           };
         }
         const cost = estimateHdbCost(geocoded.lat, geocoded.lon, {
@@ -174,6 +177,7 @@ module.exports = async (req, res) => {
           rateLabel: cost.rateLabel,
           confidence: cost.confidence,
           ev: false, // EV charging info isn't in the HDB carpark dataset
+          availableLots: null, // live lot matching is scoped to private/mall carparks only for now
         };
       });
 
@@ -189,6 +193,24 @@ module.exports = async (req, res) => {
       const evPoints = await fetchEvChargingPoints(postalCode);
       const nearEvChargingPoint = (lat, lng) =>
         evPoints.some((p) => haversineMeters(lat, lng, p.lat, p.lon) <= EV_MATCH_RADIUS_M);
+
+      // Live available-lot count is matched against LTA's CarParkAvailability
+      // feed by proximity, same approach and same honest limitation as EV
+      // matching above - private/mall carparks aren't in that feed by ID, so
+      // this is a best-effort nearest-match, not guaranteed to be this exact
+      // carpark. Returns null (shown as "unconfirmed", not a fake number)
+      // when nothing is within range.
+      const lotsPoints = await fetchCarParkAvailability();
+      const nearestAvailableLots = (lat, lng) => {
+        let best = null;
+        for (const p of lotsPoints) {
+          const d = haversineMeters(lat, lng, p.lat, p.lon);
+          if (d <= LOTS_MATCH_RADIUS_M && (!best || d < best.distanceM)) {
+            best = { distanceM: d, availableLots: p.availableLots };
+          }
+        }
+        return best ? best.availableLots : null;
+      };
 
       const handCurated = privateCarparks
         .map((p) => {
@@ -206,6 +228,7 @@ module.exports = async (req, res) => {
             rateLabel: p.notes,
             confidence,
             ev: nearEvChargingPoint(p.lat, p.lng),
+            availableLots: nearestAvailableLots(p.lat, p.lng),
           };
         });
 
@@ -225,6 +248,7 @@ module.exports = async (req, res) => {
             rateLabel: rateLabel,
             confidence,
             ev: nearEvChargingPoint(c.lat, c.lng),
+            availableLots: nearestAvailableLots(c.lat, c.lng),
           };
         });
 
@@ -260,7 +284,10 @@ module.exports = async (req, res) => {
           "Central Area status is approximated from the searched address and applied to nearby HDB carparks. Private carpark rates come from a small curated list, not a live feed. Motorcycle results only include HDB/URA carparks - private carpark motorcycle rates aren't in our data yet." +
           (evConfigured
             ? ` EV charging flags come from LTA DataMall's EVChargingPoints API, matched to private/mall carparks within ${EV_MATCH_RADIUS_M}m - HDB carpark EV charging isn't covered yet.`
-            : " EV charging data isn't configured on this deployment yet (needs an LTA DataMall account key), so the EV filter currently returns no carparks."),
+            : " EV charging data isn't configured on this deployment yet (needs an LTA DataMall account key), so the EV filter currently returns no carparks.") +
+          (evConfigured
+            ? ` Live available-lot counts (where shown) come from LTA DataMall's CarParkAvailability feed, matched to private/mall carparks within ${LOTS_MATCH_RADIUS_M}m - not guaranteed to be this exact carpark, and HDB carparks don't show a live count yet.`
+            : ""),
       },
       results: finalResults,
     });

@@ -411,6 +411,9 @@
     color:var(--steel);
     letter-spacing:0.02em;
   }
+  .result-price .result-lots{
+    color:#7BC67E;
+  }
 
   footer{
     position:relative;
@@ -718,13 +721,17 @@
 
       const evTag = r.ev ? '<span class="result-tag" style="background:rgba(242,169,59,0.18);color:var(--amber);">⚡ EV</span>' : '';
 
+      const lotsText = (typeof r.availableLots === 'number')
+        ? '<small class="result-lots">' + r.availableLots + ' lots</small>'
+        : '';
+
       a.innerHTML =
         '<div class="result-rank">' + (i+1) + '</div>' +
         '<div class="result-main">' +
           '<div class="result-name">' + r.name + confidenceTag + evTag + '</div>' +
           '<div class="result-meta">' + r.type + ' · ' + (r.distanceM/1000).toFixed(2) + 'km · ' + (r.rateLabel || '') + '</div>' +
         '</div>' +
-        '<div class="result-price">' + priceText + '<small>~' + durationLabel + '</small></div>';
+        '<div class="result-price">' + priceText + '<small>~' + durationLabel + '</small>' + lotsText + '</div>';
 
       resultsEl.appendChild(a);
     });
