@@ -95,6 +95,20 @@
   }
 
 
+  .brand-link{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-decoration:none;
+    cursor:pointer;
+    transition: opacity 0.15s ease;
+  }
+  .brand-link:hover{ opacity:0.85; }
+  .brand-link:focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:4px;
+  }
+
   .eyebrow{
     font-family:'IBM Plex Mono', monospace;
     letter-spacing:0.28em;
@@ -434,8 +448,10 @@
 <body>
 
 <div class="hero" id="hero">
-  <div class="eyebrow">Live carpark finder · Singapore</div>
-  <h1 class="brand">WHERE<span>TO</span>PARK</h1>
+  <a href="/" class="brand-link" aria-label="Reload Wheretopark">
+    <div class="eyebrow">Live carpark finder · Singapore</div>
+    <h1 class="brand">WHERE<span>TO</span>PARK</h1>
+  </a>
   <p class="tagline">Type your postal code. We point you to the cheapest carparks within 1km — so you spend less time circling and less money parking.</p>
 
   <div class="toggle-row">
