@@ -19,8 +19,17 @@
 //    searched address's location, applied to all nearby HDB carparks. This is
 //    a reasonable simplification for carparks within ~1-2km of each other, but
 //    can be wrong very close to the Central Area boundary.
-//  - Private carpark rates are only as good as our curated list. Anything not
-//    in that list shows as "unconfirmed - check on arrival."
+//  - Private carpark RATES ($ pricing) are only as good as our small curated
+//    list (data/private-carparks*.json) - anything not in that list shows as
+//    "unconfirmed - check on arrival." There's no free public API for private
+//    carpark rates, so this can't realistically cover all of Singapore.
+//  - EV charging + live lot availability, however, come from LTA DataMall
+//    (see lib/evCharging.js, lib/carparkAvailability.js) and ARE nationwide:
+//    exact for HDB carparks (matched by ID for lots, by location for EV,
+//    using an approximate local SVY21<->lat/lon conversion valid within the
+//    ~2km search radius - see toApproxSvy21 below), best-effort proximity
+//    matching for private/mall carparks (only as good as our curated list's
+//    coordinates).
 //  - OneMap's search API is free for basic use, but Singapore's government may
 //    require you to register a free API token if you hit higher volumes -
 //    see https://www.onemap.gov.sg/apidocs/ if you get consistent auth errors.
@@ -137,6 +146,80 @@ module.exports = async (req, res) => {
     const hdbRecords = await fetchHdbCarparks();
     const central = isCentralArea(geocoded.lat, geocoded.lon); // approximation, see notes above
 
+    // Live EV charging + lot availability, fetched once and reused for both
+    // HDB and private/mall carparks below. Car searches only - the lots feed
+    // is filtered to car lots (LotType "C") and EV charging isn't scoped to
+    // motorcycles here.
+    let evPoints = [];
+    let lotsPoints = [];
+    if (vehicleType === "car") {
+      evPoints = await fetchEvChargingPoints(postalCode);
+      lotsPoints = await fetchCarParkAvailability();
+    }
+
+    const nearEvChargingPoint = (lat, lng) =>
+      evPoints.some((p) => haversineMeters(lat, lng, p.lat, p.lon) <= EV_MATCH_RADIUS_M);
+
+    // Live available-lot count for private/mall carparks is matched against
+    // LTA's CarParkAvailability feed by proximity - those carparks aren't in
+    // that feed by ID, so this is a best-effort nearest-match, not
+    // guaranteed to be this exact carpark. Returns null (shown as
+    // "unconfirmed", not a fake number) when nothing is within range.
+    const nearestAvailableLots = (lat, lng) => {
+      let best = null;
+      for (const p of lotsPoints) {
+        const d = haversineMeters(lat, lng, p.lat, p.lon);
+        if (d <= LOTS_MATCH_RADIUS_M && (!best || d < best.distanceM)) {
+          best = { distanceM: d, availableLots: p.availableLots };
+        }
+      }
+      return best ? best.availableLots : null;
+    };
+
+    // HDB carpark coordinates in this app are SVY21 (easting/northing), not
+    // lat/lon, so EV/lots points (lat/lon) can't be compared to them
+    // directly. SVY21 is a conformal Transverse Mercator projection with a
+    // scale factor of 1.0 at its origin (which sits inside Singapore), so
+    // over the ~2km search radius, approximating it as locally linear -
+    // anchored on the geocoded address's own verified (lat,lon)<->(x,y) pair
+    // from OneMap - is accurate to well under a metre. This avoids needing a
+    // full global SVY21<->WGS84 projection implementation just for proximity
+    // matching.
+    const metersPerDegLat = 110574; // ~constant across Singapore's latitude range
+    const metersPerDegLon = 111320 * Math.cos((geocoded.lat * Math.PI) / 180);
+    const toApproxSvy21 = (lat, lon) => ({
+      x: geocoded.x + (lon - geocoded.lon) * metersPerDegLon,
+      y: geocoded.y + (lat - geocoded.lat) * metersPerDegLat,
+    });
+    const evPointsSvy21 = evPoints.map((p) => toApproxSvy21(p.lat, p.lon));
+    const lotsPointsSvy21 = lotsPoints.map((p) => ({
+      ...toApproxSvy21(p.lat, p.lon),
+      availableLots: p.availableLots,
+      carParkId: p.carParkId,
+      agency: p.agency,
+    }));
+
+    const nearEvChargingPointSvy21 = (x, y) =>
+      evPointsSvy21.some((p) => svy21Distance(x, y, p.x, p.y) <= EV_MATCH_RADIUS_M);
+
+    // HDB carparks get an exact CarParkID match first (LTA's HDB-agency
+    // entries use the same numbering as the HDB dataset's car_park_no) -
+    // reliable and nationwide, unlike the proximity guess used as a
+    // fallback (and for the LTA/URA-agency entries which don't necessarily
+    // share that ID scheme).
+    const hdbAvailableLots = (carParkNo, x, y) => {
+      const exact = lotsPointsSvy21.find((p) => p.agency === "HDB" && p.carParkId === carParkNo);
+      if (exact) return exact.availableLots;
+      let best = null;
+      for (const p of lotsPointsSvy21) {
+        const d = svy21Distance(x, y, p.x, p.y);
+        if (d <= LOTS_MATCH_RADIUS_M && (!best || d < best.distanceM)) {
+          best = { distanceM: d, availableLots: p.availableLots };
+        }
+      }
+      return best ? best.availableLots : null;
+    };
+
     const hdbResults = hdbRecords
       .map((r) => {
         const x = parseFloat(r.x_coord);
@@ -150,12 +233,16 @@ module.exports = async (req, res) => {
           carParkNo: r.car_park_no,
           freeParking: r.free_parking,
           nightParking: r.night_parking,
+          x,
+          y,
         };
       })
       .filter(Boolean)
       .filter((c) => c.distanceM <= SEARCH_RADIUS_M)
       .sort((a, b) => a.distanceM - b.distanceM)
       .map((c) => {
+        const ev = vehicleType === "car" ? nearEvChargingPointSvy21(c.x, c.y) : false;
+        const availableLots = vehicleType === "car" ? hdbAvailableLots(c.carParkNo, c.x, c.y) : null;
         if (vehicleType === "motorcycle") {
           const cost = estimateHdbMotorcycleCost({ startMin, endMin, dayOfWeek });
           return {
@@ -163,8 +250,8 @@ module.exports = async (req, res) => {
             estimatedCost: cost.estimatedCost,
             rateLabel: cost.rateLabel,
             confidence: cost.confidence,
-            ev: false, // EV charging info isn't in the HDB carpark dataset
-            availableLots: null, // live lot matching is scoped to private/mall carparks only for now
+            ev,
+            availableLots,
           };
         }
         const cost = estimateHdbCost(geocoded.lat, geocoded.lon, {
@@ -176,8 +263,8 @@ module.exports = async (req, res) => {
           estimatedCost: cost.estimatedCost,
           rateLabel: cost.rateLabel,
           confidence: cost.confidence,
-          ev: false, // EV charging info isn't in the HDB carpark dataset
-          availableLots: null, // live lot matching is scoped to private/mall carparks only for now
+          ev,
+          availableLots,
         };
       });
 
@@ -186,32 +273,6 @@ module.exports = async (req, res) => {
     // motorcycle searches rather than showing a wrong number) ---
     let privateResults = [];
     if (vehicleType === "car") {
-      // EV charging is matched against LTA's EVChargingPoints data for
-      // private/mall carparks only - HDB carpark coordinates in this app are
-      // SVY21 (easting/northing), not lat/lon, so they aren't matched here
-      // and always report ev: false (see hdbResults above).
-      const evPoints = await fetchEvChargingPoints(postalCode);
-      const nearEvChargingPoint = (lat, lng) =>
-        evPoints.some((p) => haversineMeters(lat, lng, p.lat, p.lon) <= EV_MATCH_RADIUS_M);
-
-      // Live available-lot count is matched against LTA's CarParkAvailability
-      // feed by proximity, same approach and same honest limitation as EV
-      // matching above - private/mall carparks aren't in that feed by ID, so
-      // this is a best-effort nearest-match, not guaranteed to be this exact
-      // carpark. Returns null (shown as "unconfirmed", not a fake number)
-      // when nothing is within range.
-      const lotsPoints = await fetchCarParkAvailability();
-      const nearestAvailableLots = (lat, lng) => {
-        let best = null;
-        for (const p of lotsPoints) {
-          const d = haversineMeters(lat, lng, p.lat, p.lon);
-          if (d <= LOTS_MATCH_RADIUS_M && (!best || d < best.distanceM)) {
-            best = { distanceM: d, availableLots: p.availableLots };
-          }
-        }
-        return best ? best.availableLots : null;
-      };
-
       const handCurated = privateCarparks
         .map((p) => {
           const distanceM = haversineMeters(geocoded.lat, geocoded.lon, p.lat, p.lng);
@@ -283,10 +344,10 @@ module.exports = async (req, res) => {
         note:
           "Central Area status is approximated from the searched address and applied to nearby HDB carparks. Private carpark rates come from a small curated list, not a live feed. Motorcycle results only include HDB/URA carparks - private carpark motorcycle rates aren't in our data yet." +
           (evConfigured
-            ? ` EV charging flags come from LTA DataMall's EVChargingPoints API, matched to private/mall carparks within ${EV_MATCH_RADIUS_M}m - HDB carpark EV charging isn't covered yet.`
+            ? ` EV charging flags come from LTA DataMall's EVChargingPoints API: exact for HDB carparks nationwide (matched by location, within ${EV_MATCH_RADIUS_M}m), best-effort proximity for private/mall carparks (also within ${EV_MATCH_RADIUS_M}m, only as good as our curated list's coordinates).`
             : " EV charging data isn't configured on this deployment yet (needs an LTA DataMall account key), so the EV filter currently returns no carparks.") +
           (evConfigured
-            ? ` Live available-lot counts (where shown) come from LTA DataMall's CarParkAvailability feed, matched to private/mall carparks within ${LOTS_MATCH_RADIUS_M}m - not guaranteed to be this exact carpark, and HDB carparks don't show a live count yet.`
+            ? ` Live available-lot counts (where shown) come from LTA DataMall's CarParkAvailability feed: exact ID match for HDB carparks nationwide, best-effort proximity match (within ${LOTS_MATCH_RADIUS_M}m, not guaranteed to be this exact carpark) for private/mall carparks.`
             : ""),
       },
       results: finalResults,
