@@ -697,7 +697,7 @@
 
     if(filtered.length === 0){
       status.textContent = evSelected
-        ? 'No carparks with confirmed EV charging within 2km of "' + data.query.address + '". EV matching only checks a small curated list of private/mall carparks (not HDB) within 150m of a real charging point.'
+        ? 'No carparks with confirmed EV charging within 2km of "' + data.query.address + '". Matched against LTA\'s nationwide charging-point data within 150m of each carpark - either none is registered that close, or (for private/mall carparks specifically) it\'s outside our small curated list\'s coverage.'
         : 'No carparks found within 2km of "' + data.query.address + '".';
       return;
     }
