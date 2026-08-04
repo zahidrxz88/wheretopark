@@ -47,8 +47,8 @@ const ltaCarparks = require("../data/private-carparks-lta.json");
 const { fetchEvChargingPoints } = require("../lib/evCharging");
 const { fetchCarParkAvailability } = require("../lib/carparkAvailability");
 
-const EV_MATCH_RADIUS_M = 150; // how close an LTA-reported EV charging point must be to count as "this carpark has EV charging"
-const LOTS_MATCH_RADIUS_M = 150; // how close an LTA-reported availability point must be to count as this carpark's live lot count
+const EV_MATCH_RADIUS_M = 300; // how close an LTA-reported EV charging point must be to count as "this carpark has EV charging" - was 150m, but real-world testing (Kallang Bahru, 2026-08-04) found a genuine match LTA correctly reported that a tighter radius missed entirely, since carparks in industrial/commercial estates can be 200-400m apart
+const LOTS_MATCH_RADIUS_M = 300; // how close an LTA-reported availability point must be to count as this carpark's live lot count - widened for the same reason as EV_MATCH_RADIUS_M
 
 const SEARCH_RADIUS_M = 2000; // 2km
 const POSTAL_CODE_REGEX = /^\d{6}$/;
