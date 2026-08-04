@@ -153,7 +153,7 @@ module.exports = async (req, res) => {
     let evPoints = [];
     let lotsPoints = [];
     if (vehicleType === "car") {
-      evPoints = await fetchEvChargingPoints();
+      evPoints = await fetchEvChargingPoints(postalCode);
       lotsPoints = await fetchCarParkAvailability();
     }
 
