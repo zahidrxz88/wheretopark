@@ -35,6 +35,19 @@ No environment variables or API keys are required to start. If you later hit
 rate limits on OneMap's search API, you can register a free account at
 [onemap.gov.sg](https://www.onemap.gov.sg/apidocs/) and add a token.
 
+To enable the **EV charging toggle** and **live available-lot counts**,
+register a free account key at
+[datamall.lta.gov.sg](https://datamall.lta.gov.sg/) and add it as the
+`LTA_ACCOUNT_KEY` environment variable in your Vercel project settings (see
+`.env.example`). Without it, both features stay fully functional in the UI
+but always return zero carparks / no lot count rather than guessing.
+
+Coverage is nationwide for **HDB carparks** (EV charging matched by location,
+live lots matched by exact carpark ID) - it's only the small curated list of
+**private/mall carparks** (see `data/private-carparks*.json`) where EV/lots
+are a best-effort proximity guess, and actual $ pricing is limited to that
+same curated list (there's no free live rate feed for private operators).
+
 ## Local development
 
 ```

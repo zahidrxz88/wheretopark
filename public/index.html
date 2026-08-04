@@ -40,13 +40,24 @@
     background-size:cover;
     background-position:center 35%;
     background-repeat:no-repeat;
+    transition: background-image 0.2s ease;
+  }
+  .hero.moto{
+    background-image:
+      linear-gradient(180deg, rgba(6,7,9,0.88) 0%, rgba(6,7,9,0.55) 38%, rgba(6,7,9,0.82) 100%),
+      url('moto-bg.jpg');
   }
 
   /* ---- Vehicle type toggle ---- */
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:22px;
+  }
   .vehicle-toggle{
     display:flex;
     gap:10px;
-    margin-bottom:22px;
   }
   .vehicle-btn{
     display:flex;
@@ -76,6 +87,26 @@
   .vehicle-btn:focus-visible{
     outline:2px solid var(--amber);
     outline-offset:2px;
+  }
+  .ev-btn.active{
+    background:var(--amber);
+    border-color:var(--amber);
+    color:#1a0c0a;
+  }
+
+
+  .brand-link{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-decoration:none;
+    cursor:pointer;
+    transition: opacity 0.15s ease;
+  }
+  .brand-link:hover{ opacity:0.85; }
+  .brand-link:focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:4px;
   }
 
   .eyebrow{
@@ -389,6 +420,9 @@
     color:var(--steel);
     letter-spacing:0.02em;
   }
+  .result-price .result-lots{
+    color:#7BC67E;
+  }
 
   footer{
     position:relative;
@@ -413,27 +447,37 @@
 </head>
 <body>
 
-<div class="hero">
-  <div class="eyebrow">Live carpark finder · Singapore</div>
-  <h1 class="brand">WHERE<span>TO</span>PARK</h1>
-  <p class="tagline">Type your postal code. We point you to the cheapest carparks within 1km — so you spend less time circling and less money parking.</p>
+<div class="hero" id="hero">
+  <a href="/" class="brand-link" aria-label="Reload Wheretopark">
+    <div class="eyebrow">Live carpark finder · Singapore</div>
+    <h1 class="brand">WHERE<span>TO</span>PARK</h1>
+  </a>
+  <p class="tagline">Type your postal code. We point you to the cheapest carparks within 2km — so you spend less time circling and less money parking.</p>
 
-  <div class="vehicle-toggle" id="vehicleToggle" role="group" aria-label="Vehicle type">
-    <button type="button" class="vehicle-btn active" data-vehicle="car" aria-pressed="true">
+  <div class="toggle-row">
+    <div class="vehicle-toggle" id="vehicleToggle" role="group" aria-label="Vehicle type">
+      <button type="button" class="vehicle-btn active" data-vehicle="car" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 16v-3.5L6 8h12l2 4.5V16M4 16h16M4 16v2.5a.5.5 0 0 0 .5.5h1.8a.5.5 0 0 0 .5-.5V16M18.2 16v2.5a.5.5 0 0 0 .5.5h1.8a.5.5 0 0 0 .5-.5V16" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <circle cx="7.5" cy="16" r="1.3" fill="currentColor"/>
+          <circle cx="16.5" cy="16" r="1.3" fill="currentColor"/>
+        </svg>
+        Car
+      </button>
+      <button type="button" class="vehicle-btn" data-vehicle="motorcycle" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="5.5" cy="17" r="2.5" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="18.5" cy="17" r="2.5" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M8 17h5l2.5-5H12l-1.2 2M13 12l2-2h2.5M16 12l2.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Motorcycle
+      </button>
+    </div>
+    <button type="button" class="vehicle-btn ev-btn" id="evToggle" aria-pressed="false" aria-label="Search EV charging carparks only">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 16v-3.5L6 8h12l2 4.5V16M4 16h16M4 16v2.5a.5.5 0 0 0 .5.5h1.8a.5.5 0 0 0 .5-.5V16M18.2 16v2.5a.5.5 0 0 0 .5.5h1.8a.5.5 0 0 0 .5-.5V16" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-        <circle cx="7.5" cy="16" r="1.3" fill="currentColor"/>
-        <circle cx="16.5" cy="16" r="1.3" fill="currentColor"/>
+        <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
       </svg>
-      Car
-    </button>
-    <button type="button" class="vehicle-btn" data-vehicle="motorcycle" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="5.5" cy="17" r="2.5" stroke="currentColor" stroke-width="1.6"/>
-        <circle cx="18.5" cy="17" r="2.5" stroke="currentColor" stroke-width="1.6"/>
-        <path d="M8 17h5l2.5-5H12l-1.2 2M13 12l2-2h2.5M16 12l2.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Motorcycle
+      EV
     </button>
   </div>
 
@@ -473,6 +517,7 @@
 
 <script>
   const vehicleToggle = document.getElementById('vehicleToggle');
+  const hero = document.getElementById('hero');
   let selectedVehicle = 'car';
   vehicleToggle.addEventListener('click', function(e){
     const btn = e.target.closest('.vehicle-btn');
@@ -484,6 +529,15 @@
     btn.classList.add('active');
     btn.setAttribute('aria-pressed', 'true');
     selectedVehicle = btn.dataset.vehicle;
+    hero.classList.toggle('moto', selectedVehicle === 'motorcycle');
+  });
+
+  const evToggleBtn = document.getElementById('evToggle');
+  let evSelected = false;
+  evToggleBtn.addEventListener('click', function(){
+    evSelected = !evSelected;
+    evToggleBtn.classList.toggle('active', evSelected);
+    evToggleBtn.setAttribute('aria-pressed', String(evSelected));
   });
 
   const form = document.getElementById('searchForm');
@@ -638,14 +692,19 @@
   function renderResults(data, postalCode, durationLabel){
     resultsEl.innerHTML = '';
 
-    if(!data.results || data.results.length === 0){
-      status.textContent = 'No carparks found within 1km of "' + data.query.address + '".';
+    const allResults = data.results || [];
+    const filtered = allResults.filter(r => r.ev === evSelected);
+
+    if(filtered.length === 0){
+      status.textContent = evSelected
+        ? 'No carparks with confirmed EV charging within 2km of "' + data.query.address + '". Matched against LTA\'s nationwide charging-point data within 300m of each carpark - either none is registered that close, or (for private/mall carparks specifically) it\'s outside our small curated list\'s coverage.'
+        : 'No carparks found within 2km of "' + data.query.address + '".';
       return;
     }
 
-    status.textContent = 'Carparks within 1km of "' + data.query.address + '", cheapest first (' + selectedVehicle + ', parking ' + durationLabel + '):';
+    status.textContent = 'Carparks within 2km of "' + data.query.address + '", cheapest first (' + selectedVehicle + (evSelected ? ', EV charging only' : '') + ', parking ' + durationLabel + '):';
 
-    data.results.slice(0, 10).forEach(function(r, i){
+    filtered.slice(0, 10).forEach(function(r, i){
       const a = document.createElement('a');
       a.className = 'result-card' + (i === 0 ? ' cheapest' : '');
       a.href = mapsLink(r.name, postalCode);
@@ -661,13 +720,19 @@
         : r.confidence === 'avoid' ? '<span class="result-tag" style="background:rgba(228,72,60,0.18);color:var(--signal);">Pricey</span>'
         : '<span class="result-tag">Unconfirmed</span>';
 
+      const evTag = r.ev ? '<span class="result-tag" style="background:rgba(242,169,59,0.18);color:var(--amber);">⚡ EV</span>' : '';
+
+      const lotsText = (typeof r.availableLots === 'number')
+        ? '<small class="result-lots">' + r.availableLots + ' lots</small>'
+        : '';
+
       a.innerHTML =
         '<div class="result-rank">' + (i+1) + '</div>' +
         '<div class="result-main">' +
-          '<div class="result-name">' + r.name + confidenceTag + '</div>' +
+          '<div class="result-name">' + r.name + confidenceTag + evTag + '</div>' +
           '<div class="result-meta">' + r.type + ' · ' + (r.distanceM/1000).toFixed(2) + 'km · ' + (r.rateLabel || '') + '</div>' +
         '</div>' +
-        '<div class="result-price">' + priceText + '<small>~' + durationLabel + '</small></div>';
+        '<div class="result-price">' + priceText + '<small>~' + durationLabel + '</small>' + lotsText + '</div>';
 
       resultsEl.appendChild(a);
     });
